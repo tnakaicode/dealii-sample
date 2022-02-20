@@ -26,9 +26,8 @@ from PyQt5.QtWidgets import QFileDialog
 # pip install PyQt5
 # pip install --upgrade --force-reinstall PyQt5
 
-from base import SetDir, plot2d, which, create_tempnum
-from base_qtOCC import init_QDisplay
-from src.OCCGui import init_qtdisplay
+from src.base import SetDir, plot2d, which, create_tempnum
+from src.base_qtOCC import init_QDisplay
 
 from OCC.Display.SimpleGui import init_display
 from OCC.Core.gp import gp_Cylinder, gp_Pnt, gp_Vec, gp_Dir
