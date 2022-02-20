@@ -1,0 +1,30 @@
+# VSCode
+.vscode/settings.json
+.vscode/launch.json
+
+*.pdf
+*.html
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+
+# Temp
+tmp/*
+temp_*/*
+*/temp_*/*
+temp_*
+
+# cpp
+a.exe
+a.out
+*.exe
+
+# zip
+*.zip
+
+# build
+build/*
+
+# img
+*/~*.pptx
