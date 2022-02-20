@@ -1,0 +1,7 @@
+! ----- names for bodies -----
+$ Gbody = 5
+! ----- names for boundaries -----
+$ Gout = 1
+$ Gsym = 2
+$ Gelec1 = 3
+$ Gelec2 = 4

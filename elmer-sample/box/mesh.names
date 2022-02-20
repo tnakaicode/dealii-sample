@@ -1,0 +1,5 @@
+! ----- names for bodies -----
+$ body2 = 2
+! ----- names for boundaries -----
+$ top = 1
+$ bnry2 = 2

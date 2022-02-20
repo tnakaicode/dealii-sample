@@ -1,0 +1,123 @@
+include "./Mesh_1/mesh.names"
+
+Header
+	Mesh DB "." "Mesh_1"
+End
+
+Simulation
+	Max Output Level = 10
+	Coordinate System = Cartesian 3D
+	Simulation Type = Steady
+	Steady State Max Iterations = 1
+End
+
+Constants
+!	Permittivity of Vacuum = 8.8542e-12	! SI, F/m
+	Permittivity of Vacuum = 8.8542e-6	! pF/um
+
+End
+
+Body 1
+	Name = "air"
+	Target Bodies =  $Gbody
+	Equation = 1
+	Material = 1
+End
+
+
+Equation 1
+!	PoissonBEM = Logical True
+	Active Solvers(2) = 1 3
+End
+
+
+Solver 1
+!	Equation = PoissonBEM
+!	Procedure = "PoissonBEM" "PoissonBEMSolver"
+	Equation = Elec Solver
+	Procedure = "StatElecSolve" "StatElecSolver"
+	Variable = Potential
+	Variable DOFs = 1
+
+!	Calculate Electric Field = TRUE
+!	Calculate Electric Flux = TRUE
+	Calculate Capacitance Matrix = TRUE
+	Capacitance BOdies = 1
+	Capacitance Matrix Filename = "cap.dat"
+	Potential Difference = 1.0
+	
+	Optimize Bandwidth = False
+
+	Linear System Solver = Iterative
+	Linear System Iterative Method = BiCGStab
+	Linear System Preconditioning = ILU1
+	Linear System Max Iterations = 100
+	Linear System Convergence Tolerance = 1.0e-8
+
+	Steady State Convergence Tolerance = 1.0e-6
+End
+
+Solver 2
+	Equation = Eletric Force
+	Procedure = "ElectricForce" "StatElecForce"
+	Exec Solver = After all
+End
+
+
+Solver 3
+	Exec Solver = After all
+	Equation = Flux Solver
+	Procedure = "FluxSolver" "FluxSolver"
+	Target Variable = Potential
+	Calculate Grad = TRUE
+!	Flux Result Variable = f1
+!	Exported variable 1  = f1[EField:3]
+
+	Linear System Solver = Iterative
+	Linear System Iterative Method = BiCGStab
+	Linear System Preconditioning = None
+	Linear System Max Iterations = 500
+	Linear System Convergence Tolerance = 1.0e-9
+End
+
+Material 1
+	Relative Permittivity = 1.0
+End
+
+Boundary Condition 1
+	Target Boundaries(1) = $Gelec1
+	Potential = 1
+	Calculate Electric Force = Logical True
+	Capacitance Body = 1
+
+End 
+
+Boundary Condition 2
+	Target Boundaries(1) = $Gelec2
+
+!	Body ID = 1
+!	Normal Targed Body = integer -1
+	Potential = 0
+	Calculate Electric Force = Logical True
+	Capacitance Body = 0
+End 
+
+Boundary Condition 3
+	Target Boundaries(1) = $Gout
+	Electric Infinity BC = TRUE
+End
+
+
+
+Solver 4
+    Exec Solver = after all
+    Equation = "ResultOutput"
+    Procedure = "ResultOutputSolve" "ResultOutputSolver"
+    Output FIle Name = "elec."
+    Output Format = "VTU"
+	VTU Format = Logical TRUE
+    Scalar Field 1 = Potential
+	Vector Field 1 = Potential Grad
+	Vector Field 2 = Electric Force Density
+End
+
