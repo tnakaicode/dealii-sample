@@ -1,0 +1,355 @@
+---
+title: dealii example step-34 Irrotational flow
+---
+
+<https://www.dealii.org/current/doxygen/deal.II/step_34.html>
+
+```bash
+DEAL::Cycle 5:
+DEAL::   Number of active cells:       24576
+DEAL::   Number of degrees of freedom: 24578
+
+
+----------------------------------------------------
+Exception on processing:
+
+--------------------------------------------------------
+An error occurred in line <1056> of file </mnt/e/ubuntu2004/dealii/source/base/utilities.cc> in function
+    void dealii::Utilities::System::posix_memalign(void**, std::size_t, std::size_t)
+The violated condition was:
+    ierr == 0
+Additional information:
+    Your program tried to allocate some memory but this allocation failed. Typically, this either means that you simply do not have enough memory in your system, or that you are (erroneously) trying to allocate a chunk of memory that is simply beyond all reasonable size, for example because the size of the object has been computed incorrectly.
+
+In the current case, the request was for 77312557088 bytes.
+--------------------------------------------------------
+
+Aborting!
+----------------------------------------------------
+```
+
+## BEMProblem class
+
+The structure of a boundary element method code is very similar to the structure of a finite element code,
+and so the member functions of this class are like those of most of the other tutorial programs.
+In particular, by now you should be familiar with reading parameters from an external file,
+and with the splitting of the different tasks into different modules.
+The same applies to boundary element methods,
+and we won't comment too much on them, except on the differences.
+
+The usual deal.II classes can be used for boundary element methods
+by specifying the "codimension" of the problem.
+This is done by setting the optional second template arguments
+to Triangulation, FiniteElement and DoFHandler to the dimension of the embedding space.
+In our case we generate either 1 or 2 dimensional meshes embedded in 2 or 3 dimensional spaces.
+
+```cpp
+  class BEMProblem
+  {
+  public:
+    BEMProblem(const unsigned int fe_degree      = 1,
+               const unsigned int mapping_degree = 1);
+
+    void run();
+
+  private:
+    void read_parameters(const std::string &filename);
+
+    void read_domain();
+
+    void refine_and_resize();
+
+    // The only really different function that we find here is the assembly
+    // routine. We wrote this function in the most possible general way, in
+    // order to allow for easy generalization to higher order methods and to
+    // different fundamental solutions (e.g., Stokes or Maxwell).
+    //
+    // The most noticeable difference is the fact that the final matrix is
+    // full, and that we have a nested loop inside the usual loop on cells
+    // that visits all support points of the degrees of freedom.  Moreover,
+    // when the support point lies inside the cell which we are visiting, then
+    // the integral we perform becomes singular.
+    //
+    // The practical consequence is that we have two sets of quadrature
+    // formulas, finite element values and temporary storage, one for standard
+    // integration and one for the singular integration, which are used where
+    // necessary.
+    void assemble_system();
+
+    // There are two options for the solution of this problem. The first is to
+    // use a direct solver, and the second is to use an iterative solver. We
+    // opt for the second option.
+    //
+    // The matrix that we assemble is not symmetric, and we opt to use the
+    // GMRES method; however the construction of an efficient preconditioner
+    // for boundary element methods is not a trivial issue. Here we use a non
+    // preconditioned GMRES solver. The options for the iterative solver, such
+    // as the tolerance, the maximum number of iterations, are selected
+    // through the parameter file.
+    void solve_system();
+
+    // Once we obtained the solution, we compute the $L^2$ error of the
+    // computed potential as well as the $L^\infty$ error of the approximation
+    // of the solid angle. The mesh we are using is an approximation of a
+    // smooth curve, therefore the computed diagonal matrix of fraction of
+    // angles or solid angles $\alpha(\mathbf{x})$ should be constantly equal
+    // to $\frac 12$. In this routine we output the error on the potential and
+    // the error in the approximation of the computed angle. Notice that the
+    // latter error is actually not the error in the computation of the angle,
+    // but a measure of how well we are approximating the sphere and the
+    // circle.
+    //
+    // Experimenting a little with the computation of the angles gives very
+    // accurate results for simpler geometries. To verify this you can comment
+    // out, in the read_domain() method, the tria.set_manifold(1, manifold)
+    // line, and check the alpha that is generated by the program. By removing
+    // this call, whenever the mesh is refined new nodes will be placed along
+    // the straight lines that made up the coarse mesh, rather than be pulled
+    // onto the surface that we really want to approximate. In the three
+    // dimensional case, the coarse grid of the sphere is obtained starting
+    // from a cube, and the obtained values of alphas are exactly $\frac 12$
+    // on the nodes of the faces, $\frac 34$ on the nodes of the edges and
+    // $\frac 78$ on the 8 nodes of the vertices.
+    void compute_errors(const unsigned int cycle);
+
+    // Once we obtained a solution on the codimension one domain, we want to
+    // interpolate it to the rest of the space. This is done by performing
+    // again the convolution of the solution with the kernel in the
+    // compute_exterior_solution() function.
+    //
+    // We would like to plot the velocity variable which is the gradient of
+    // the potential solution. The potential solution is only known on the
+    // boundary, but we use the convolution with the fundamental solution to
+    // interpolate it on a standard dim dimensional continuous finite element
+    // space. The plot of the gradient of the extrapolated solution will give
+    // us the velocity we want.
+    //
+    // In addition to the solution on the exterior domain, we also output the
+    // solution on the domain's boundary in the output_results() function, of
+    // course.
+    void compute_exterior_solution();
+
+    void output_results(const unsigned int cycle);
+
+    // To allow for dimension independent programming, we specialize this
+    // single function to extract the singular quadrature formula needed to
+    // integrate the singular kernels in the interior of the cells.
+    const Quadrature<dim - 1> &get_singular_quadrature(
+      const typename DoFHandler<dim - 1, dim>::active_cell_iterator &cell,
+      const unsigned int index) const;
+
+
+    // The usual deal.II classes can be used for boundary element methods by
+    // specifying the "codimension" of the problem. This is done by setting
+    // the optional second template arguments to Triangulation, FiniteElement
+    // and DoFHandler to the dimension of the embedding space. In our case we
+    // generate either 1 or 2 dimensional meshes embedded in 2 or 3
+    // dimensional spaces.
+    //
+    // The optional argument by default is equal to the first argument, and
+    // produces the usual finite element classes that we saw in all previous
+    // examples.
+    //
+    // The class is constructed in a way to allow for arbitrary order of
+    // approximation of both the domain (through high order mapping) and the
+    // finite element space. The order of the finite element space and of the
+    // mapping can be selected in the constructor of the class.
+
+    Triangulation<dim - 1, dim> tria;
+    FE_Q<dim - 1, dim>          fe;
+    DoFHandler<dim - 1, dim>    dof_handler;
+    MappingQ<dim - 1, dim>      mapping;
+
+    // In BEM methods, the matrix that is generated is dense. Depending on the
+    // size of the problem, the final system might be solved by direct LU
+    // decomposition, or by iterative methods. In this example we use an
+    // unpreconditioned GMRES method. Building a preconditioner for BEM method
+    // is non trivial, and we don't treat this subject here.
+
+    FullMatrix<double> system_matrix;
+    Vector<double>     system_rhs;
+
+    // The next two variables will denote the solution $\phi$ as well as a
+    // vector that will hold the values of $\alpha(\mathbf x)$ (the fraction
+    // of $\Omega$ visible from a point $\mathbf x$) at the support points of
+    // our shape functions.
+
+    Vector<double> phi;
+    Vector<double> alpha;
+
+    // The convergence table is used to output errors in the exact solution
+    // and in the computed alphas.
+
+    ConvergenceTable convergence_table;
+
+    // The following variables are the ones that we fill through a parameter
+    // file.  The new objects that we use in this example are the
+    // Functions::ParsedFunction object and the QuadratureSelector object.
+    //
+    // The Functions::ParsedFunction class allows us to easily and quickly
+    // define new function objects via parameter files, with custom
+    // definitions which can be very complex (see the documentation of that
+    // class for all the available options).
+    //
+    // We will allocate the quadrature object using the QuadratureSelector
+    // class that allows us to generate quadrature formulas based on an
+    // identifying string and on the possible degree of the formula itself. We
+    // used this to allow custom selection of the quadrature formulas for the
+    // standard integration, and to define the order of the singular
+    // quadrature rule.
+    //
+    // We also define a couple of parameters which are used in case we wanted
+    // to extend the solution to the entire domain.
+
+    Functions::ParsedFunction<dim> wind;
+    Functions::ParsedFunction<dim> exact_solution;
+
+    unsigned int                         singular_quadrature_order;
+    std::shared_ptr<Quadrature<dim - 1>> quadrature;
+
+    SolverControl solver_control;
+
+    unsigned int n_cycles;
+    unsigned int external_refinement;
+
+    bool run_in_this_dimension;
+    bool extend_solution;
+  };
+
+```
+
+## BEMProblem read_parameter()
+
+```cpp
+  void BEMProblem<dim>::read_parameters(const std::string &filename)
+  {
+    deallog << std::endl
+            << "Parsing parameter file " << filename << std::endl
+            << "for a " << dim << " dimensional simulation. " << std::endl;
+
+    ParameterHandler prm;
+
+    prm.declare_entry("Number of cycles", "4", Patterns::Integer());
+    prm.declare_entry("External refinement", "5", Patterns::Integer());
+    prm.declare_entry("Extend solution on the -2,2 box",
+                      "true",
+                      Patterns::Bool());
+    prm.declare_entry("Run 2d simulation", "true", Patterns::Bool());
+    prm.declare_entry("Run 3d simulation", "true", Patterns::Bool());
+
+    prm.enter_subsection("Quadrature rules");
+    {
+      prm.declare_entry(
+        "Quadrature type",
+        "gauss",
+        Patterns::Selection(
+          QuadratureSelector<(dim - 1)>::get_quadrature_names()));
+      prm.declare_entry("Quadrature order", "4", Patterns::Integer());
+      prm.declare_entry("Singular quadrature order", "5", Patterns::Integer());
+    }
+    prm.leave_subsection();
+
+    // For both two and three dimensions, we set the default input data to be
+    // such that the solution is $x+y$ or $x+y+z$. The actually computed
+    // solution will have value zero at infinity. In this case, this coincide
+    // with the exact solution, and no additional corrections are needed, but
+    // you should be aware of the fact that we arbitrarily set $\phi_\infty$,
+    // and the exact solution we pass to the program needs to have the same
+    // value at infinity for the error to be computed correctly.
+    //
+    // The use of the Functions::ParsedFunction object is pretty straight
+    // forward. The Functions::ParsedFunction::declare_parameters function
+    // takes an additional integer argument that specifies the number of
+    // components of the given function. Its default value is one. When the
+    // corresponding Functions::ParsedFunction::parse_parameters method is
+    // called, the calling object has to have the same number of components
+    // defined here, otherwise an exception is thrown.
+    //
+    // When declaring entries, we declare both 2 and three dimensional
+    // functions. However only the dim-dimensional one is ultimately
+    // parsed. This allows us to have only one parameter file for both 2 and 3
+    // dimensional problems.
+    //
+    // Notice that from a mathematical point of view, the wind function on the
+    // boundary should satisfy the condition $\int_{\partial\Omega}
+    // \mathbf{v}\cdot \mathbf{n} d \Gamma = 0$, for the problem to have a
+    // solution. If this condition is not satisfied, then no solution can be
+    // found, and the solver will not converge.
+    prm.enter_subsection("Wind function 2d");
+    {
+      Functions::ParsedFunction<2>::declare_parameters(prm, 2);
+      prm.set("Function expression", "1; 1");
+    }
+    prm.leave_subsection();
+
+    prm.enter_subsection("Wind function 3d");
+    {
+      Functions::ParsedFunction<3>::declare_parameters(prm, 3);
+      prm.set("Function expression", "1; 1; 1");
+    }
+    prm.leave_subsection();
+
+    prm.enter_subsection("Exact solution 2d");
+    {
+      Functions::ParsedFunction<2>::declare_parameters(prm);
+      prm.set("Function expression", "x+y");
+    }
+    prm.leave_subsection();
+
+    prm.enter_subsection("Exact solution 3d");
+    {
+      Functions::ParsedFunction<3>::declare_parameters(prm);
+      prm.set("Function expression", "x+y+z");
+    }
+    prm.leave_subsection();
+
+
+    // In the solver section, we set all SolverControl parameters. The object
+    // will then be fed to the GMRES solver in the solve_system() function.
+    prm.enter_subsection("Solver");
+    SolverControl::declare_parameters(prm);
+    prm.leave_subsection();
+
+    // After declaring all these parameters to the ParameterHandler object,
+    // let's read an input file that will give the parameters their values. We
+    // then proceed to extract these values from the ParameterHandler object:
+    prm.parse_input(filename);
+
+    n_cycles            = prm.get_integer("Number of cycles");
+    external_refinement = prm.get_integer("External refinement");
+    extend_solution     = prm.get_bool("Extend solution on the -2,2 box");
+
+    prm.enter_subsection("Quadrature rules");
+    {
+      quadrature = std::shared_ptr<Quadrature<dim - 1>>(
+        new QuadratureSelector<dim - 1>(prm.get("Quadrature type"),
+                                        prm.get_integer("Quadrature order")));
+      singular_quadrature_order = prm.get_integer("Singular quadrature order");
+    }
+    prm.leave_subsection();
+
+    prm.enter_subsection("Wind function " + std::to_string(dim) + "d");
+    {
+      wind.parse_parameters(prm);
+    }
+    prm.leave_subsection();
+
+    prm.enter_subsection("Exact solution " + std::to_string(dim) + "d");
+    {
+      exact_solution.parse_parameters(prm);
+    }
+    prm.leave_subsection();
+
+    prm.enter_subsection("Solver");
+    solver_control.parse_parameters(prm);
+    prm.leave_subsection();
+
+
+    // Finally, here's another example of how to use parameter files in
+    // dimension independent programming.  If we wanted to switch off one of
+    // the two simulations, we could do this by setting the corresponding "Run
+    // 2d simulation" or "Run 3d simulation" flag to false:
+    run_in_this_dimension =
+      prm.get_bool("Run " + std::to_string(dim) + "d simulation");
+  }
+```
