@@ -18,10 +18,10 @@ if __name__ == '__main__':
     argvs = sys.argv
     parser = argparse.ArgumentParser()
     parser.add_argument("--dir", dest="dir", default="./")
-    parser.add_argument("--num", dest="num", default=3, type="int")
-    parser.add_argument("--flg", dest="flg", default=1, type="int")
+    parser.add_argument("--num", dest="num", default=3, type=int)
+    parser.add_argument("--flg", dest="flg", default=1, type=int)
     parser.add_argument("--pxyz", dest="pxyz",
-                      default=[0.0, 0.0, 0.0], type="float", nargs=3)
+                      default=[0.0, 0.0, 0.0], type=float, nargs=3)
     opt = parser.parse_args()
     print(opt, argvs)
 
