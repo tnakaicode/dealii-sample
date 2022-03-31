@@ -7,7 +7,7 @@ import subprocess
 import tempfile
 from scipy.spatial import ConvexHull, Delaunay
 from linecache import getline, clearcache
-from optparse import OptionParser
+import argparse
 
 import bempp.api
 
@@ -107,12 +107,12 @@ class plotBEM (plot2d):
 
 if __name__ == '__main__':
     argvs = sys.argv
-    parser = OptionParser()
-    parser.add_option("--dir", dest="dir", default="./")
-    parser.add_option("--pxyz", dest="pxyz",
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--dir", dest="dir", default="./")
+    parser.add_argument("--pxyz", dest="pxyz",
                       default=[0.0, 0.0, 0.0], type="float", nargs=3)
-    opt, argc = parser.parse_args(argvs)
-    print(opt, argc)
+    opt = parser.parse_args()
+    print(opt, argvs)
 
     obj = plotBEM()
     bempp.api.export(obj.tempname + ".msh", obj.grid, write_binary=False)
