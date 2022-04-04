@@ -6,8 +6,8 @@ import time
 import subprocess
 import tempfile
 from scipy.spatial import ConvexHull, Delaunay
-from linecache import getline, clearcache
 import argparse
+from linecache import getline, clearcache
 
 import bempp.api
 
