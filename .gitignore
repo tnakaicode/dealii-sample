@@ -28,3 +28,4 @@ build/*
 
 # img
 */~*.pptx
+dealii-*/build/*
